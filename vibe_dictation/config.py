@@ -26,13 +26,14 @@ class AudioConfig:
     sample_rate: int = 16_000
     frame_ms: int = 20
     input_device: str = ""
-    vad_noise_ratio: float = 2.5
-    vad_min_rms: float = 0.006
-    vad_start_frames: int = 5
-    vad_end_silence_ms: int = 1200
+    vad_noise_ratio: float = 3.0
+    vad_min_rms: float = 0.010
+    vad_start_frames: int = 6
+    vad_end_silence_ms: int = 1000
     vad_min_speech_ms: int = 250
-    vad_preroll_ms: int = 300
-    vad_max_utterance_s: float = 60.0
+    vad_preroll_ms: int = 400
+    vad_calibrate_ms: int = 350
+    vad_max_utterance_s: float = 20.0
 
 
 @dataclass
@@ -45,6 +46,7 @@ class AppConfig:
     input_device: str = ""          # substring; empty = system default
     end_silence_ms: int = 1200      # silence that closes the utterance
     wait_s: float = 8.0             # how long to wait for speech after a press
+    transcribe_timeout_s: float = 20.0  # watchdog; falls back to CPU if exceeded
     paste: bool = True              # False = copy to clipboard only
     warmup: bool = True             # preload the model at startup
     hotkey: str = "ctrl+shift+d"    # toggle dictation
@@ -53,7 +55,7 @@ class AppConfig:
         return AudioConfig(
             input_device=self.input_device,
             vad_end_silence_ms=max(500, int(self.end_silence_ms)),
-            vad_max_utterance_s=60.0,
+            vad_max_utterance_s=20.0,
         )
 
     def to_dict(self) -> dict:

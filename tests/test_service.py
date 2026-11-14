@@ -1,6 +1,7 @@
 """One-utterance-per-press pipeline, with audio and STT stubbed out."""
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,8 @@ AUDIO = np.zeros(1600, dtype=np.float32)
 class FakeResult:
     def __init__(self, text: str):
         self.text = text
+        self.audio_s = 1.0
+        self.device = "cpu"
 
 
 @pytest.fixture()
@@ -190,3 +193,44 @@ def test_start_engine_runs_a_single_worker(service: DictationService) -> None:
     assert service._worker_thread is first
     assert first is not None and first.daemon
     service.shutdown()
+
+
+def test_transcribe_timeout_falls_back_to_cpu(monkeypatch, service: DictationService) -> None:
+    fallbacks = {"count": 0}
+
+    def slow(_audio):
+        time.sleep(3.0)
+        return FakeResult("너무 늦음")
+
+    def fake_fallback() -> None:
+        fallbacks["count"] += 1
+
+    monkeypatch.setattr(service._stt, "transcribe", slow)
+    monkeypatch.setattr(service._stt, "fallback_to_cpu", fake_fallback)
+    service.config.transcribe_timeout_s = 0.2
+
+    with pytest.raises(TimeoutError):
+        service._transcribe(AUDIO)
+    assert fallbacks["count"] == 1
+
+
+def test_cancel_during_transcription_drops_result(monkeypatch, service: DictationService,
+                                                  pasted) -> None:
+    from vibe_dictation.audio import RecordResult
+
+    def fake_record(*_args, **_kwargs):
+        service.shutdown_event.set()
+        return RecordResult(AUDIO, "ok", None, 100.0)
+
+    class CancellingStt:
+        def transcribe(self, _audio):
+            service.active.clear()  # the user pressed the hotkey again
+            return FakeResult("버려질 문장")
+
+    monkeypatch.setattr(service_module, "record_utterance", fake_record)
+    monkeypatch.setattr(service, "_stt", CancellingStt())
+
+    service.start()
+    service._worker()
+    assert pasted == []
+    assert not service.active.is_set()

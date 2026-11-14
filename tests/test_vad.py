@@ -59,6 +59,28 @@ def test_preroll_is_kept() -> None:
     assert len(detector.frames) >= 5
 
 
+def test_calibrated_floor_ignores_steady_room_noise() -> None:
+    # Ambient measured at 0.02 -> speech must reach ~0.06, so 0.03 stays silence.
+    detector = EndpointDetector(config(), noise=0.02,
+                                preroll=[quiet_frame(0.02) for _ in range(10)])
+    events = feed(detector, [quiet_frame(0.03) for _ in range(60)])
+    assert "start" not in events
+
+
+def test_calibration_preroll_is_kept() -> None:
+    preroll = [quiet_frame() for _ in range(6)]
+    detector = EndpointDetector(config(), noise=0.0005, preroll=preroll)
+    feed(detector, [loud_frame() for _ in range(6)])
+    assert detector.in_speech
+    assert len(detector.frames) >= 6
+
+
+def test_speech_still_starts_above_calibrated_floor() -> None:
+    detector = EndpointDetector(config(), noise=0.02)
+    events = feed(detector, [loud_frame(0.2) for _ in range(10)])
+    assert "start" in events
+
+
 def test_long_speech_ends_at_max_length() -> None:
     detector = EndpointDetector(config(max_utterance_s=0.2, end_silence_ms=10_000))
     feed(detector, [quiet_frame() for _ in range(10)])

@@ -57,17 +57,41 @@ def vad_config(config: AudioConfig) -> VadConfig:
     )
 
 
+def _rms(frame: np.ndarray) -> float:
+    return float(np.sqrt(np.mean(frame * frame))) if frame.size else 0.0
+
+
 def record_utterance(config: AudioConfig, max_wait_s: float = 10.0,
                      on_frame: Callable[[float, str, float], None] | None = None,
                      should_stop: Callable[[], bool] | None = None) -> RecordResult:
-    detector = EndpointDetector(vad_config(config))
     device = resolve_device(config.input_device, "input")
-    frame_len = detector.frame_len
-    started = False
+    frame_len = int(config.sample_rate * config.frame_ms / 1000)
     begin = time.perf_counter()
+    started = False
 
     with sd.InputStream(samplerate=config.sample_rate, channels=1, dtype="float32",
                         blocksize=frame_len, device=device) as stream:
+        # Calibrate the room first. Those frames are kept as preroll, so speech
+        # that starts immediately is not lost. The 30th percentile is robust to
+        # one loud word inside the window.
+        calib_frames = max(1, int(config.vad_calibrate_ms / config.frame_ms))
+        calib: list[np.ndarray] = []
+        for _ in range(calib_frames):
+            data, _ = stream.read(frame_len)
+            frame = data[:, 0]
+            calib.append(frame)
+            now = time.perf_counter()
+            if should_stop is not None and should_stop():
+                return RecordResult(None, "cancelled", None, round((now - begin) * 1000, 1))
+            if on_frame is not None:
+                try:
+                    on_frame(_rms(frame), "calibrating", now - begin)
+                except Exception:
+                    pass
+        floor = float(np.percentile([_rms(frame) for frame in calib], 30))
+        floor = min(floor, 0.05)  # a loud room must not deafen the detector
+
+        detector = EndpointDetector(vad_config(config), noise=floor, preroll=calib)
         while True:
             data, _ = stream.read(frame_len)
             frame = data[:, 0]
@@ -77,8 +101,7 @@ def record_utterance(config: AudioConfig, max_wait_s: float = 10.0,
                 return RecordResult(None, "cancelled", None, round((now - begin) * 1000, 1))
             if on_frame is not None:
                 try:
-                    rms = float(np.sqrt(np.mean(frame * frame)))
-                    on_frame(rms, event, now - begin)
+                    on_frame(_rms(frame), event, now - begin)
                 except Exception:
                     pass
 

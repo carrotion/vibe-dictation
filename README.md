@@ -90,6 +90,7 @@ tray menu.
   "input_device": "",
   "end_silence_ms": 1200,
   "wait_s": 8.0,
+  "transcribe_timeout_s": 20.0,
   "paste": true,
   "warmup": true,
   "hotkey": "ctrl+shift+d"
@@ -106,6 +107,7 @@ tray menu.
 | `input_device` | Case-insensitive substring of the microphone name. Empty uses the system default. |
 | `end_silence_ms` | Silence that closes the utterance. Lower feels snappier, higher tolerates thinking pauses. |
 | `wait_s` | How long to wait for speech to start before giving up. |
+| `transcribe_timeout_s` | If a decode stalls longer than this, the app reports an error and switches to CPU. |
 | `paste` | `false` copies to the clipboard but never sends Ctrl+V. |
 | `warmup` | Load the model at startup so the first sentence is fast. |
 
@@ -114,6 +116,21 @@ Hotkeys combine `ctrl`, `alt`, `shift`, `win` with a letter, digit, or `enter`,
 
 Tray menu: status, start/cancel, open config, open log, open the Startup folder,
 quit.
+
+## Noise and reliability
+
+- Each press starts with a ~350 ms room calibration. Speech must rise about 3×
+  above that measured floor, so a fan, air conditioner, or keyboard does not open
+  an utterance, and the calibration frames are kept so the first syllable is not
+  lost.
+- A second gate runs inside Whisper: Silero VAD strips non-speech, and segments
+  with a high `no_speech_prob` or a poor log-probability are dropped instead of
+  being pasted as invented text.
+- At startup the app decodes a short silent clip. If CUDA cannot load its
+  libraries, or the first decode stalls, it moves to CPU automatically and keeps
+  working. A per-utterance watchdog (20 s) does the same if the GPU hangs later.
+- Utterances are capped at 20 s, so a noisy room can never turn into a minute-long
+  transcription.
 
 ## Logs and state
 

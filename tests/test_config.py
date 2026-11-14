@@ -13,6 +13,15 @@ def test_defaults_are_stable() -> None:
     assert config.device == "auto"
     assert config.paste is True
     assert config.hotkey == "ctrl+shift+d"
+    assert config.transcribe_timeout_s == 20.0
+
+
+def test_audio_is_tuned_for_room_noise() -> None:
+    audio = AppConfig().audio()
+    assert audio.vad_min_rms >= 0.010
+    assert audio.vad_start_frames >= 6
+    assert audio.vad_calibrate_ms >= 300
+    assert audio.vad_max_utterance_s <= 30.0
 
 
 def test_round_trip_keeps_values() -> None:
@@ -36,6 +45,10 @@ def test_audio_view_tracks_end_silence() -> None:
 
 def test_low_end_silence_is_clamped() -> None:
     assert AppConfig(end_silence_ms=10).audio().vad_end_silence_ms == 500
+
+
+def test_long_utterance_is_capped() -> None:
+    assert AppConfig().audio().vad_max_utterance_s == 20.0
 
 
 def test_load_config_creates_file(tmp_path: Path) -> None:
