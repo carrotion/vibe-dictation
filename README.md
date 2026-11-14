@@ -1,5 +1,7 @@
 # Vibe Dictation
 
+[![tests](https://github.com/carrotion/vibe-dictation/actions/workflows/tests.yml/badge.svg)](https://github.com/carrotion/vibe-dictation/actions/workflows/tests.yml)
+
 Press a hotkey, speak one sentence, and the text appears in whatever input box
 has focus — a browser, an editor, a chat app, a terminal. Transcription runs
 locally with [faster-whisper](https://github.com/SYSTRAN/faster-whisper); no audio
