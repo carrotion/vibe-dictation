@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibe-dictation"
+version = "0.1.0"
+description = "Global voice dictation for Windows with a tray app and local Whisper."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "carrotion" }]
+keywords = ["dictation", "speech-to-text", "whisper", "windows", "tray"]
+dependencies = [
+    "faster-whisper",
+    "numpy",
+    "sounddevice",
+    "soundfile",
+    "pyperclip",
+    "pystray",
+    "pillow",
+]
+
+[project.optional-dependencies]
+cuda = ["nvidia-cublas-cu12", "nvidia-cudnn-cu12"]
+
+[project.scripts]
+vibe-dictation = "vibe_dictation.tray:main"
+vibe-dictation-once = "vibe_dictation.one_shot:main"
+
+[project.urls]
+Homepage = "https://github.com/carrotion/vibe-dictation"
+
+[tool.setuptools.packages.find]
+include = ["vibe_dictation*"]
+
+[tool.setuptools.package-data]
+vibe_dictation = ["assets/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

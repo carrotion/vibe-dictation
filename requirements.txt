@@ -1,0 +1,12 @@
+# Vibe Dictation - global voice dictation for Windows
+faster-whisper
+numpy
+sounddevice
+soundfile
+pyperclip
+pystray
+pillow
+
+# Optional: CUDA 12 libraries for NVIDIA GPU (CPU works without these)
+# nvidia-cublas-cu12
+# nvidia-cudnn-cu12
